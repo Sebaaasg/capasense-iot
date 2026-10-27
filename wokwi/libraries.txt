@@ -1,0 +1,5 @@
+PubSubClient
+ArduinoJson
+DHT sensor library
+Adafruit Unified Sensor
+RTClib
