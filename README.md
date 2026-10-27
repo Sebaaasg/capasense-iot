@@ -43,7 +43,7 @@ El catálogo completo de mensajes está en el informe de la Fase 03.
 1. Abrir `capasense_nodo/capasense_nodo.ino` en el Arduino IDE o pegarlo en Wokwi.
 2. Instalar las librerías de `wokwi/libraries.txt`.
 3. En la sección de configuración del programa:
-   - `#define MODO_WOKWI 1` para el simulador. Usa la red `Wokwi-GUEST` y el broker público `test.mosquitto.org`.
+   - `#define MODO_WOKWI 1` para el simulador. Usa la red `Wokwi-GUEST` y el broker público `broker.hivemq.com`.
    - `#define MODO_WOKWI 0` para el circuito real. Escribir el nombre y la clave de la red WiFi, la IP del broker y el usuario y la contraseña MQTT.
 
 ### 2. Broker Mosquitto
@@ -69,7 +69,7 @@ net stop mosquitto
 mosquitto -c C:\mosquitto\mosquitto.conf -v
 ```
 
-El bloque `puente-wokwi` de `mosquitto.conf` solo se usa con Wokwi: trae los mensajes del broker público al broker local. Con el ESP32 real se comenta.
+El bloque `puente-wokwi` de `mosquitto.conf` intenta traer los mensajes del broker público al broker local. En la Fase 03 no logró conectarse, así que para la demostración con Wokwi el receptor se suscribe directo al broker público (ver abajo). Con el ESP32 real el puente se comenta.
 
 ### 3. Programa receptor
 
@@ -81,6 +81,12 @@ pip install -r requirements.txt
 python receptor_capasense.py --host localhost --user capasense --password CLAVE
 ```
 
+Para la demostración con Wokwi, sin broker local:
+
+```bash
+python receptor_capasense.py --host broker.hivemq.com
+```
+
 Al cerrarlo con Ctrl+C muestra un resumen de mensajes por tema, el intervalo promedio y los mensajes perdidos. Todo queda guardado en `capasense.db`.
 
 ### 4. Enviar un comando al nodo
@@ -89,7 +95,7 @@ Al cerrarlo con Ctrl+C muestra un resumen de mensajes por tema, el intervalo pro
 mosquitto_pub -h localhost -u capasense -P CLAVE -t capasense/nodo01/cmd -m '{"accion":"ajustar","ocupacion":19}'
 ```
 
-En el Símbolo del sistema de Windows: `-m "{\"accion\":\"ajustar\",\"ocupacion\":19}"`.
+En el Símbolo del sistema de Windows: `-m "{\"accion\":\"ajustar\",\"ocupacion\":19}"`. En la demostración con Wokwi se usa `-h broker.hivemq.com` sin `-u` ni `-P`.
 
 ## Pines del ESP32
 

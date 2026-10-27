@@ -41,7 +41,7 @@
   // El broker de la laptop/Raspberry recibe estos mensajes mediante un puente.
   const char* WIFI_SSID  = "Wokwi-GUEST";
   const char* WIFI_PASS  = "";
-  const char* MQTT_HOST  = "test.mosquitto.org";
+  const char* MQTT_HOST  = "broker.hivemq.com";
   const char* MQTT_USER  = nullptr;   // el broker público no usa usuario
   const char* MQTT_PASS  = nullptr;
   RTC_DS1307 rtc;                      // Wokwi no tiene DS3231
@@ -478,7 +478,12 @@ void revisarAmbiente() {
 
   // Voltaje: promedio de 16 lecturas calibradas en mV, multiplicado por 5.
   long sumaMv = 0;
+#if MODO_WOKWI
+  // Wokwi no simula la atenuación de 2.5 dB: se lee en el rango normal de 0 a 3.3 V.
+  for (int i = 0; i < 16; i++) sumaMv += analogRead(PIN_VOLTAJE) * 3300L / 4095;
+#else
   for (int i = 0; i < 16; i++) sumaMv += analogReadMilliVolts(PIN_VOLTAJE);
+#endif
   ultimoVoltaje = (sumaMv / 16.0) / 1000.0 * FACTOR_DIVISOR + CORRECCION_VOLTAJE;
 
   // Alerta con 2 lecturas seguidas bajas; se libera al superar 4.9 V.
@@ -584,7 +589,8 @@ bool conectarMqtt() {
 
   // Si el nodo se desconecta sin avisar, el broker publica la "última voluntad".
   if (!mqtt.connect(ID_CLIENTE, MQTT_USER, MQTT_PASS, TEMA_CONEXION, 1, true, ultimaVoluntad)) {
-    Serial.printf("[MQTT] Falló la conexión, código %d\n", mqtt.state());
+    // -2 = no se pudo abrir la conexión con el broker (dirección, puerto o red)
+    Serial.printf("[MQTT] Falló la conexión con %s, código %d\n", MQTT_HOST, mqtt.state());
     return false;
   }
   char aviso[96];
@@ -617,11 +623,17 @@ void tareaRed(void* parametro) {
   mqtt.setKeepAlive(15);   // el broker detecta la caída en ~22 s
 
   uint32_t tUltimoIntento = 0;
+  bool wifiAvisado = false;
   for (;;) {
     if (WiFi.status() != WL_CONNECTED) {
       mqttConectado = false;
+      wifiAvisado = false;
     } else if (!mqtt.connected()) {
       mqttConectado = false;
+      if (!wifiAvisado) {
+        Serial.printf("[WiFi] Conectado, IP %s\n", WiFi.localIP().toString().c_str());
+        wifiAvisado = true;
+      }
       if (millis() - tUltimoIntento > 5000) {   // reintento cada 5 s
         tUltimoIntento = millis();
         mqttConectado = conectarMqtt();
